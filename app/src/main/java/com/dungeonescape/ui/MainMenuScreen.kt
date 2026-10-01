@@ -1,13 +1,13 @@
 package com.dungeonescape.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -36,22 +36,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.dungeonescape.R
 import com.dungeonescape.engine.GameStateManager
 import com.dungeonescape.ui.theme.DungeonAccent
 import com.dungeonescape.ui.theme.DungeonCard
 import com.dungeonescape.ui.theme.DungeonDark
 import com.dungeonescape.ui.theme.DungeonGold
+import com.dungeonescape.ui.theme.DungeonGreen
 import com.dungeonescape.ui.theme.DungeonPrimary
-import com.dungeonescape.ui.theme.DungeonPrimaryDark
 import com.dungeonescape.ui.theme.DungeonRed
 import com.dungeonescape.ui.theme.TextPrimary
 import com.dungeonescape.ui.theme.TextSecondary
@@ -59,11 +60,14 @@ import com.dungeonescape.ui.theme.TextSecondary
 @Composable
 fun MainMenuScreen(
     stateManager: GameStateManager,
-    onStartGame: () -> Unit,
+    onResumeGame: () -> Unit,
+    onStartNewGame: () -> Unit,
     onToggleAudio: () -> Unit,
     onExit: () -> Unit
 ) {
     var showInstructions by remember { mutableStateOf(false) }
+
+    val savedSession = remember { stateManager.loadSavedGameSession() }
 
     val infiniteTransition = rememberInfiniteTransition(label = "title_pulse")
     val titleScale by infiniteTransition.animateFloat(
@@ -77,31 +81,31 @@ fun MainMenuScreen(
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DungeonDark),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        // Animated background dungeon torches / grid lines
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val gridStep = 48f
-            for (x in 0..(size.width / gridStep).toInt()) {
-                drawLine(
-                    color = Color(0x11FFFFFF),
-                    start = Offset(x * gridStep, 0f),
-                    end = Offset(x * gridStep, size.height),
-                    strokeWidth = 1f
+        // ATMOSPHERIC BACKGROUND IMAGE
+        Image(
+            painter = painterResource(id = R.drawable.bg_main_menu),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // DARK GRADIENT VIGNETTE OVERLAY
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xE60D0F14), // Dark top for title
+                            Color(0x990D0F14), // Translucent middle showing lanterns & archway
+                            Color(0xF20D0F14)  // Dark bottom for buttons
+                        )
+                    )
                 )
-            }
-            for (y in 0..(size.height / gridStep).toInt()) {
-                drawLine(
-                    color = Color(0x11FFFFFF),
-                    start = Offset(0f, y * gridStep),
-                    end = Offset(size.width, y * gridStep),
-                    strokeWidth = 1f
-                )
-            }
-        }
+        )
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -110,10 +114,9 @@ fun MainMenuScreen(
                 .padding(24.dp)
                 .fillMaxWidth()
         ) {
-            // Title Header
             Text(
                 text = "DUNGEON",
-                fontSize = 42.sp,
+                fontSize = 44.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.ExtraBold,
                 color = DungeonPrimary,
@@ -121,31 +124,31 @@ fun MainMenuScreen(
             )
             Text(
                 text = "ESCAPE",
-                fontSize = 40.sp,
+                fontSize = 42.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.ExtraBold,
                 color = DungeonAccent,
                 letterSpacing = 4.sp
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "A 60FPS Top-Down Rogue Crawler",
-                fontSize = 13.sp,
+                text = "Procedural Action Rogue Crawler",
+                fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 color = TextSecondary
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
             // High score card
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(DungeonCard)
-                    .border(1.5.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                    .background(DungeonCard.copy(alpha = 0.90f))
+                    .border(1.5.dp, Color(0x44FFFFFF), RoundedCornerShape(12.dp))
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -183,34 +186,55 @@ fun MainMenuScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
-            // Buttons
+            // RESUME GAME BUTTON (If saved session exists)
+            if (savedSession != null) {
+                Button(
+                    onClick = onResumeGame,
+                    colors = ButtonDefaults.buttonColors(containerColor = DungeonGreen),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .width(230.dp)
+                        .height(50.dp)
+                ) {
+                    Text(
+                        text = "RESUME (LVL ${savedSession.level})",
+                        fontSize = 15.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = DungeonDark
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // START NEW GAME BUTTON (Direct progressive start)
             Button(
-                onClick = onStartGame,
+                onClick = onStartNewGame,
                 colors = ButtonDefaults.buttonColors(containerColor = DungeonPrimary),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
-                    .width(220.dp)
-                    .height(52.dp)
+                    .width(230.dp)
+                    .height(50.dp)
             ) {
                 Text(
-                    text = "START GAME",
-                    fontSize = 17.sp,
+                    text = "NEW GAME",
+                    fontSize = 16.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     color = DungeonDark
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedButton(
                 onClick = { showInstructions = true },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
-                    .width(220.dp)
-                    .height(48.dp)
+                    .width(230.dp)
+                    .height(46.dp)
             ) {
                 Text(
                     text = "INSTRUCTIONS",
@@ -221,13 +245,13 @@ fun MainMenuScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedButton(
                 onClick = onExit,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
-                    .width(220.dp)
+                    .width(230.dp)
                     .height(44.dp)
             ) {
                 Text(
@@ -246,7 +270,7 @@ fun MainMenuScreen(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = DungeonCard,
-                    border = androidx.compose.foundation.BorderStroke(2.dp, DungeonAccent),
+                    border = BorderStroke(2.dp, DungeonAccent),
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Column(
@@ -260,30 +284,31 @@ fun MainMenuScreen(
                             fontWeight = FontWeight.Bold,
                             color = DungeonGold
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        
+                        Spacer(modifier = Modifier.height(12.dp))
+
                         val instructions = listOf(
-                            "🕹️ Left Joystick: Move your hero through the dark dungeon.",
-                            "⚔️ Attack Button: Slash nearby skeletons in your path.",
-                            "💨 Dash Button: Burst through enemies (3s cooldown). Cannot pass through walls.",
-                            "🔑 Key: Explore to find the golden key to activate the Exit Portal.",
-                            "🌀 Portal: Enter the activated portal to ascend to the next dungeon level.",
-                            "💰 Coins: Collect scattered coins to boost your high score.",
-                            "🔦 Torchlight: Fog of war covers the dungeon. Beware of lurking enemies!"
+                            "🕹️ Left Joystick: Move your hero smoothly.",
+                            "⚔️ Attack Button: Slash skeletons & crack Secret Walls!",
+                            "💨 Dash: Burst through enemies (cannot cross walls).",
+                            "🧱 Secret Walls: Look for subtle wall cracks! Break with 3 hits to discover Hidden Treasure Rooms.",
+                            "💰 Treasure Rooms: Contain coin chests, Merchant Altars, and Guardian Elites.",
+                            "🍷 Merchant Altar: Spend coins for instant health potions.",
+                            "🔑 Key & Portal: Find key to open the exit portal to ascend.",
+                            "⚡ Progressive Themes: Themes naturally evolve with your level depth!"
                         )
 
                         instructions.forEach { item ->
                             Text(
                                 text = item,
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = TextPrimary,
-                                modifier = Modifier.padding(vertical = 4.dp),
-                                lineHeight = 16.sp
+                                modifier = Modifier.padding(vertical = 3.dp),
+                                lineHeight = 15.sp
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Button(
                             onClick = { showInstructions = false },
@@ -291,7 +316,7 @@ fun MainMenuScreen(
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Text(
-                                text = "GOT IT!",
+                                text = "READY!",
                                 color = DungeonDark,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold

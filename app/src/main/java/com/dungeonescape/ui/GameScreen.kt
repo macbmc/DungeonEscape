@@ -1,8 +1,11 @@
 package com.dungeonescape.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -24,7 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -33,17 +34,19 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.dungeonescape.engine.GameEngine
 import com.dungeonescape.models.GameState
-import com.dungeonescape.models.Vector2D
 import com.dungeonescape.ui.components.ActionButton
 import com.dungeonescape.ui.components.GameHud
+import com.dungeonescape.ui.components.MerchantDialog
 import com.dungeonescape.ui.components.VirtualJoystick
 import com.dungeonescape.ui.theme.DungeonAccent
 import com.dungeonescape.ui.theme.DungeonCard
 import com.dungeonescape.ui.theme.DungeonDark
+import com.dungeonescape.ui.theme.DungeonGreen
 import com.dungeonescape.ui.theme.DungeonPrimary
 import com.dungeonescape.ui.theme.DungeonRed
 import com.dungeonescape.ui.theme.TextPrimary
 import com.dungeonescape.utils.Constants
+import com.dungeonescape.utils.GameBalance
 import com.dungeonescape.utils.RenderUtils
 
 @Composable
@@ -52,10 +55,12 @@ fun GameScreen(
     gameEngine: GameEngine,
     onMainMenu: () -> Unit
 ) {
+    val themeAssets = gameEngine.themeManager.getAssets(gameState.theme)
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(DungeonDark)
+            .background(themeAssets.ambientDarkColor)
     ) {
         val screenWidthPx = constraints.maxWidth.toFloat()
         val screenHeightPx = constraints.maxHeight.toFloat()
@@ -79,7 +84,7 @@ fun GameScreen(
                 val minTileY = (cameraPos.y - halfVisibleY).toInt().coerceAtLeast(0)
                 val maxTileY = (cameraPos.y + halfVisibleY).toInt().coerceAtMost(dungeonSize - 1)
 
-                // LAYER 1: Floor & Wall Tiles
+                // LAYER 1: Floor & Wall Tiles (Theme-specific)
                 for (ty in minTileY..maxTileY) {
                     for (tx in minTileX..maxTileX) {
                         val tile = tiles[ty][tx]
@@ -91,13 +96,44 @@ fun GameScreen(
                             tile = tile,
                             screenX = screenX,
                             screenY = screenY,
-                            tileSize = tileSizePx
+                            tileSize = tileSizePx,
+                            themeAssets = themeAssets
                         )
                     }
                 }
 
-                // LAYER 2: Objects (Coins, Key, Portal)
-                // Portal
+                // LAYER 2: Objects (Traps, Altar, Chests, Coins, Key, Portal)
+                // Spike Traps
+                for (trap in gameState.traps) {
+                    val tx = trap.position.x.toInt().coerceIn(0, dungeonSize - 1)
+                    val ty = trap.position.y.toInt().coerceIn(0, dungeonSize - 1)
+                    val isVis = tiles[ty][tx].isVisible
+                    val tScreenX = centerX + (trap.position.x - cameraPos.x) * tileSizePx
+                    val tScreenY = centerY + (trap.position.y - cameraPos.y) * tileSizePx
+                    RenderUtils.drawTrapSpike(this, trap, tScreenX, tScreenY, tileSizePx, isVis)
+                }
+
+                // Merchant Altar
+                gameState.merchantAltar?.let { altar ->
+                    val tx = altar.position.x.toInt().coerceIn(0, dungeonSize - 1)
+                    val ty = altar.position.y.toInt().coerceIn(0, dungeonSize - 1)
+                    val isVis = tiles[ty][tx].isVisible
+                    val aScreenX = centerX + (altar.position.x - cameraPos.x) * tileSizePx
+                    val aScreenY = centerY + (altar.position.y - cameraPos.y) * tileSizePx
+                    RenderUtils.drawMerchantAltar(this, altar, aScreenX, aScreenY, tileSizePx, isVis)
+                }
+
+                // Treasure Chests
+                for (chest in gameState.chests) {
+                    val tx = chest.position.x.toInt().coerceIn(0, dungeonSize - 1)
+                    val ty = chest.position.y.toInt().coerceIn(0, dungeonSize - 1)
+                    val isVis = tiles[ty][tx].isVisible
+                    val cScreenX = centerX + (chest.position.x - cameraPos.x) * tileSizePx
+                    val cScreenY = centerY + (chest.position.y - cameraPos.y) * tileSizePx
+                    RenderUtils.drawTreasureChest(this, chest, cScreenX, cScreenY, tileSizePx, isVis)
+                }
+
+                // Exit Portal
                 gameState.portal?.let { portal ->
                     val tx = portal.position.x.toInt().coerceIn(0, dungeonSize - 1)
                     val ty = portal.position.y.toInt().coerceIn(0, dungeonSize - 1)
@@ -107,7 +143,7 @@ fun GameScreen(
                     RenderUtils.drawPortal(this, portal, pScreenX, pScreenY, tileSizePx, isVis)
                 }
 
-                // Key
+                // Golden Key
                 gameState.key?.let { key ->
                     val tx = key.position.x.toInt().coerceIn(0, dungeonSize - 1)
                     val ty = key.position.y.toInt().coerceIn(0, dungeonSize - 1)
@@ -127,7 +163,17 @@ fun GameScreen(
                     RenderUtils.drawCoin(this, coin, cScreenX, cScreenY, tileSizePx, isVis)
                 }
 
-                // LAYER 3: Enemies (Skeletons)
+                // Health Potions
+                for (potion in gameState.potions) {
+                    val tx = potion.position.x.toInt().coerceIn(0, dungeonSize - 1)
+                    val ty = potion.position.y.toInt().coerceIn(0, dungeonSize - 1)
+                    val isVis = tiles[ty][tx].isVisible
+                    val pScreenX = centerX + (potion.position.x - cameraPos.x) * tileSizePx
+                    val pScreenY = centerY + (potion.position.y - cameraPos.y) * tileSizePx
+                    RenderUtils.drawHealthPotion(this, potion, pScreenX, pScreenY, tileSizePx, isVis)
+                }
+
+                // LAYER 3: Enemies
                 for (skeleton in gameState.skeletons) {
                     val tx = skeleton.position.x.toInt().coerceIn(0, dungeonSize - 1)
                     val ty = skeleton.position.y.toInt().coerceIn(0, dungeonSize - 1)
@@ -152,13 +198,14 @@ fun GameScreen(
                     tileSize = tileSizePx
                 )
 
-                // LAYER 6: Torchlight & Dynamic Fog of War
+                // LAYER 6: Dynamic Torchlight Vignette (with Theme lighting tint)
                 RenderUtils.drawTorchLighting(
                     drawScope = this,
                     screenWidth = screenWidthPx,
                     screenHeight = screenHeightPx,
                     visionRadiusTiles = Constants.PLAYER_VISION_RADIUS,
-                    tileSize = tileSizePx
+                    tileSize = tileSizePx,
+                    themeAssets = themeAssets
                 )
             }
         }
@@ -170,25 +217,40 @@ fun GameScreen(
             onPauseClick = { gameEngine.pauseGame() }
         )
 
-        // 3. CONTROLS LAYER (Virtual Joystick + Attack & Dash Buttons)
+        // 3. TOUCH CONTROLS
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = 24.dp, start = 20.dp, end = 20.dp)
         ) {
-            // Virtual Joystick on Bottom-Left
+            // Virtual Joystick
             VirtualJoystick(
                 modifier = Modifier.align(Alignment.BottomStart),
                 size = 140.dp,
                 onMove = { dir -> gameEngine.handleJoystickInput(dir) }
             )
 
-            // Right Action Controls (Dash above Attack)
+            // Right Action Controls
             Column(
                 modifier = Modifier.align(Alignment.BottomEnd),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Interactive Merchant Altar Button (Appears when near altar)
+                AnimatedVisibility(
+                    visible = gameState.isMerchantNear,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    ActionButton(
+                        label = "ALTAR",
+                        subLabel = "SHOP",
+                        baseColor = DungeonGreen,
+                        size = 60.dp,
+                        onPress = { gameEngine.openMerchantDialog() }
+                    )
+                }
+
                 // Dash Button
                 val dashCd = gameState.player.dashCooldownTimer
                 val dashProgress = (dashCd / Constants.DASH_COOLDOWN).coerceIn(0f, 1f)
@@ -217,13 +279,33 @@ fun GameScreen(
             }
         }
 
-        // 4. PAUSE MODAL
+        // 4. MERCHANT SHOP MODAL
+        if (gameState.isMerchantDialogOpen) {
+            MerchantDialog(
+                gameState = gameState,
+                onBuySmallPotion = {
+                    gameEngine.buyPotion(
+                        GameBalance.SMALL_POTION_COST,
+                        GameBalance.SMALL_SECRET_POTION_HEAL
+                    )
+                },
+                onBuyLargePotion = {
+                    gameEngine.buyPotion(
+                        GameBalance.LARGE_POTION_COST,
+                        GameBalance.LARGE_SECRET_POTION_HEAL
+                    )
+                },
+                onClose = { gameEngine.closeMerchantDialog() }
+            )
+        }
+
+        // 5. PAUSE MODAL
         if (gameState.isPaused) {
             Dialog(onDismissRequest = { gameEngine.resumeGame() }) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = DungeonCard,
-                    border = androidx.compose.foundation.BorderStroke(2.dp, DungeonPrimary),
+                    border = BorderStroke(2.dp, DungeonPrimary),
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Column(
@@ -265,7 +347,7 @@ fun GameScreen(
                             modifier = Modifier.fillMaxWidth(0.8f)
                         ) {
                             Text(
-                                text = "MAIN MENU",
+                                text = "SAVE & EXIT",
                                 color = TextPrimary,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold

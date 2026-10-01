@@ -1,6 +1,10 @@
 package com.dungeonescape.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -65,91 +69,119 @@ fun GameHud(
         label = "pulse_scale"
     )
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
+    val criticalPulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "critical_pulse"
+    )
+
+    // Dynamic 3-state health bar colors
+    val healthGradient = when {
+        healthPercent > 0.60f -> listOf(DungeonGreen, Color(0xFF69F0AE))
+        healthPercent >= 0.30f -> listOf(Color(0xFFFFB300), Color(0xFFFFE082)) // Amber warning
+        else -> listOf(Color(0xFFFF1744).copy(alpha = criticalPulseAlpha), Color(0xFFFF5252)) // Critical red pulse
+    }
+
+    val healthLabelColor = when {
+        healthPercent > 0.60f -> DungeonGreen
+        healthPercent >= 0.30f -> Color(0xFFFFB300)
+        else -> DungeonRed
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // TOP LEFT: Health Bar
-        Column(
+        Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(DungeonCard.copy(alpha = 0.85f))
-                .border(1.5.dp, Color(0x44FFFFFF), RoundedCornerShape(10.dp))
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "HP",
-                    color = DungeonRed,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "${player.health.toInt()} / ${Constants.PLAYER_MAX_HEALTH.toInt()}",
-                    color = TextPrimary,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            // Health Bar Graphic
-            Box(
+            // TOP LEFT: Health Bar
+            Column(
                 modifier = Modifier
-                    .width(110.dp)
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(Color(0xFF1E222A))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(5.dp))
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(DungeonCard.copy(alpha = 0.88f))
+                    .border(
+                        1.5.dp,
+                        if (healthPercent < 0.30f) Color(0xFFFF1744).copy(alpha = criticalPulseAlpha) else Color(0x44FFFFFF),
+                        RoundedCornerShape(10.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "HP",
+                        color = healthLabelColor,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${player.health.toInt()} / ${Constants.PLAYER_MAX_HEALTH.toInt()}",
+                        color = TextPrimary,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(healthPercent)
+                        .width(110.dp)
                         .height(10.dp)
                         .clip(RoundedCornerShape(5.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    if (healthPercent > 0.3f) DungeonGreen else DungeonRed,
-                                    if (healthPercent > 0.3f) Color(0xFF69F0AE) else Color(0xFFFF5252)
-                                )
-                            )
-                        )
-                )
+                        .background(Color(0xFF1E222A))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(5.dp))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(healthPercent)
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(Brush.horizontalGradient(healthGradient))
+                    )
+                }
             }
-        }
 
-        // TOP CENTER: Key Status
-        Box(
+        // TOP CENTER: Key Status & Theme Name
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .clip(RoundedCornerShape(10.dp))
-                .background(DungeonCard.copy(alpha = 0.85f))
+                .background(DungeonCard.copy(alpha = 0.88f))
                 .border(
                     width = 1.5.dp,
                     color = if (player.hasKey) DungeonGold else Color(0x33FFFFFF),
                     shape = RoundedCornerShape(10.dp)
                 )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 10.dp, vertical = 5.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = if (player.hasKey) "KEY: FOUND!" else "KEY: NEEDED",
-                    color = if (player.hasKey) DungeonGold else TextSecondary,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    modifier = if (player.hasKey) Modifier.scale(pulseScale) else Modifier
-                )
-            }
+            Text(
+                text = gameState.theme.displayName.uppercase(),
+                color = Color(0xFF80D8FF),
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp
+            )
+            Text(
+                text = if (player.hasKey) "KEY: FOUND!" else "KEY: NEEDED",
+                color = if (player.hasKey) DungeonGold else TextSecondary,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                modifier = if (player.hasKey) Modifier.scale(pulseScale) else Modifier
+            )
         }
 
-        // TOP RIGHT: Level & Coins & Pause
+        // TOP RIGHT: Level, Coins & Pause
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -158,7 +190,7 @@ fun GameHud(
                 horizontalAlignment = Alignment.End,
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(DungeonCard.copy(alpha = 0.85f))
+                    .background(DungeonCard.copy(alpha = 0.88f))
                     .border(1.5.dp, Color(0x44FFFFFF), RoundedCornerShape(10.dp))
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
@@ -175,7 +207,7 @@ fun GameHud(
                         color = DungeonGold,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 11.sp
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -188,12 +220,11 @@ fun GameHud(
                 }
             }
 
-            // Pause Button
             Box(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(DungeonCard.copy(alpha = 0.85f))
+                    .background(DungeonCard.copy(alpha = 0.88f))
                     .border(1.5.dp, Color(0x55FFFFFF), CircleShape)
                     .clickable { onPauseClick() },
                 contentAlignment = Alignment.Center
@@ -205,6 +236,34 @@ fun GameHud(
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
+            }
+        }
+    }
+
+    // FLOATING HEAL / CLEAR FEEDBACK BANNER
+        AnimatedVisibility(
+            visible = gameState.healFeedbackText != null,
+            enter = fadeIn() + slideInVertically { -it / 2 },
+            exit = fadeOut() + slideOutVertically { -it / 2 }
+        ) {
+            gameState.healFeedbackText?.let { feedback ->
+                Box(
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(DungeonCard.copy(alpha = 0.95f))
+                        .border(1.5.dp, DungeonGreen, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "💚 $feedback",
+                        color = DungeonGreen,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
             }
         }
     }
