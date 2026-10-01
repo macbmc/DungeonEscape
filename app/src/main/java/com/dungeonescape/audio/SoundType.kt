@@ -10,5 +10,10 @@ enum class SoundType {
     PORTAL_ACTIVATED,
     DASH,
     VICTORY,
-    GAME_OVER
+    GAME_OVER,
+    SECRET_WALL_HIT,
+    SECRET_WALL_BREAK,
+    CHEST_OPEN,
+    POTION_PURCHASE,
+    TRAP_HIT
 }

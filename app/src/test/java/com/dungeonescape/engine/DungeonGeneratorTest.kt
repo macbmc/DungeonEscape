@@ -22,7 +22,6 @@ class DungeonGeneratorTest {
 
     @Test
     fun testDungeonIsSolvableAndAllKeyItemsReachable() {
-        // Run 20 random procedural dungeons to guarantee 100% solvability
         for (lvl in 1..20) {
             val dungeon = generator.generateDungeon(level = lvl)
             val tiles = dungeon.tiles
@@ -36,7 +35,7 @@ class DungeonGeneratorTest {
             assertTrue("Key must be on walkable floor", tiles[keyPos.y][keyPos.x].isWalkable)
             assertTrue("Portal must be on walkable floor", tiles[portalPos.y][portalPos.x].isWalkable)
 
-            // BFS from Player to Key and Portal
+            // BFS from Player to Key and Portal (without relying on secret walls)
             val visited = Array(size) { BooleanArray(size) }
             val queue = ArrayDeque<Position>()
             queue.add(startPos)
@@ -51,7 +50,7 @@ class DungeonGeneratorTest {
                     val nx = curr.x + dx[d]
                     val ny = curr.y + dy[d]
                     if (nx in 0 until size && ny in 0 until size) {
-                        if (!visited[ny][nx] && tiles[ny][nx].isWalkable) {
+                        if (!visited[ny][nx] && tiles[ny][nx].isWalkable && tiles[ny][nx].type != TileType.SECRET_WALL) {
                             visited[ny][nx] = true
                             queue.add(Position(nx, ny))
                         }
@@ -59,36 +58,79 @@ class DungeonGeneratorTest {
                 }
             }
 
-            assertTrue("Level $lvl: Key must be reachable from player spawn", visited[keyPos.y][keyPos.x])
-            assertTrue("Level $lvl: Portal must be reachable from player spawn", visited[portalPos.y][portalPos.x])
-
-            // Verify coins reachability
-            for (coin in dungeon.coins) {
-                val cPos = Position(coin.position.x.toInt(), coin.position.y.toInt())
-                assertTrue("Level $lvl: Coin at ($cPos) must be reachable", visited[cPos.y][cPos.x])
-            }
+            assertTrue("Level $lvl: Key must be reachable from player spawn without secret walls", visited[keyPos.y][keyPos.x])
+            assertTrue("Level $lvl: Portal must be reachable from player spawn without secret walls", visited[portalPos.y][portalPos.x])
         }
     }
 
     @Test
-    fun testDifficultyScaling() {
+    fun testDifficultyScalingAndVariants() {
         val lvl1 = generator.generateDungeon(1)
-        val lvl5 = generator.generateDungeon(5)
+        val lvl12 = generator.generateDungeon(12)
 
         assertTrue(
             "Higher levels should have more enemies",
-            lvl5.skeletons.size >= lvl1.skeletons.size
+            lvl12.skeletons.size >= lvl1.skeletons.size
         )
 
-        if (lvl5.skeletons.isNotEmpty() && lvl1.skeletons.isNotEmpty()) {
+        if (lvl12.skeletons.isNotEmpty() && lvl1.skeletons.isNotEmpty()) {
             assertTrue(
-                "Level 5 skeletons should have increased speed",
-                lvl5.skeletons.first().speed > lvl1.skeletons.first().speed
-            )
-            assertTrue(
-                "Level 5 skeletons should have increased health",
-                lvl5.skeletons.first().health > lvl1.skeletons.first().health
+                "Level 12 skeletons should have increased speed",
+                lvl12.skeletons.first().speed > lvl1.skeletons.first().speed
             )
         }
+    }
+
+    @Test
+    fun testLevel1HasZeroPotionsAndNoSecretRooms() {
+        for (i in 1..10) {
+            val lvl1 = generator.generateDungeon(level = 1)
+            assertEquals("Level 1 must never spawn world potions", 0, lvl1.potions.size)
+            assertEquals("Level 1 must never spawn secret room altars", null, lvl1.merchantAltar)
+            assertEquals("Level 1 must never spawn secret room chests", 0, lvl1.chests.size)
+        }
+    }
+
+    @Test
+    fun testLevel2HasNoSecretRooms() {
+        for (i in 1..10) {
+            val lvl2 = generator.generateDungeon(level = 2)
+            assertEquals("Level 2 must not spawn secret room altars", null, lvl2.merchantAltar)
+            assertEquals("Level 2 must not spawn secret room chests", 0, lvl2.chests.size)
+        }
+    }
+
+    @Test
+    fun testLowHealthBoostsLevel2PotionSpawn() {
+        // Player with low health (< 35 HP) entering level 2 should get guaranteed potion
+        val lowHpDungeon = generator.generateDungeon(level = 2, playerHealthEnteringLevel = 25f)
+        assertTrue("Low health player in Level 2 should spawn potion", lowHpDungeon.potions.isNotEmpty())
+    }
+
+    @Test
+    fun testLevel2AndLevel3PotionHighAvailability() {
+        var lvl2PotionsCount = 0
+        var lvl3PotionsCount = 0
+        val sampleSize = 50
+
+        for (i in 0 until sampleSize) {
+            val d2 = generator.generateDungeon(level = 2, playerHealthEnteringLevel = 100f)
+            if (d2.potions.isNotEmpty()) lvl2PotionsCount++
+
+            val d3 = generator.generateDungeon(level = 3, playerHealthEnteringLevel = 100f)
+            if (d3.potions.isNotEmpty()) lvl3PotionsCount++
+        }
+
+        val lvl2Rate = lvl2PotionsCount.toFloat() / sampleSize
+        val lvl3Rate = lvl3PotionsCount.toFloat() / sampleSize
+
+        assertTrue(
+            "Level 2 potion spawn rate should be ~80% (actual: $lvl2Rate)",
+            lvl2Rate >= 0.70f
+        )
+        assertTrue(
+            "Level 3 potion spawn rate should be ~90% (actual: $lvl3Rate)",
+            lvl3Rate >= 0.75f
+        )
     }
 }

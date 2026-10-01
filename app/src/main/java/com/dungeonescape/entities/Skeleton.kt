@@ -9,6 +9,13 @@ enum class SkeletonState {
     CHASING
 }
 
+enum class EnemyVariant {
+    NORMAL,
+    ELITE,
+    ANCIENT_GUARDIAN,
+    SHADOW_ELITE
+}
+
 data class Skeleton(
     val id: Int,
     var position: Vector2D,
@@ -18,6 +25,7 @@ data class Skeleton(
     var speed: Float = Constants.SKELETON_BASE_SPEED,
     var damage: Float = Constants.SKELETON_BASE_DAMAGE,
     var detectionRadius: Float = Constants.SKELETON_DETECTION_RADIUS,
+    var variant: EnemyVariant = EnemyVariant.NORMAL,
     
     var state: SkeletonState = SkeletonState.WANDERING,
     var wanderDirection: Vector2D = Vector2D.ZERO,
@@ -25,9 +33,18 @@ data class Skeleton(
     var attackCooldownTimer: Float = 0f,
     var hitFlashTimer: Float = 0f,
     var isAlive: Boolean = true,
-    var walkCycleTimer: Float = 0f
+    var walkCycleTimer: Float = 0f,
+    var shadowAlpha: Float = 1.0f
 ) {
     val isHit: Boolean get() = hitFlashTimer > 0f
+
+    val bonusCoinDrop: Int
+        get() = when (variant) {
+            EnemyVariant.ANCIENT_GUARDIAN -> 25
+            EnemyVariant.ELITE -> 10
+            EnemyVariant.SHADOW_ELITE -> 15
+            EnemyVariant.NORMAL -> 0
+        }
 
     fun takeDamage(amount: Float): Boolean {
         if (!isAlive) return false
@@ -55,6 +72,14 @@ data class Skeleton(
         }
 
         val distToPlayer = position.distanceTo(playerPos)
+
+        // Shadow stealth behavior: fade out when > 2.5 tiles from player
+        if (variant == EnemyVariant.SHADOW_ELITE) {
+            val targetAlpha = if (distToPlayer < 2.5f) 1.0f else 0.05f
+            shadowAlpha += (targetAlpha - shadowAlpha) * (deltaTime * 5f).coerceIn(0f, 1f)
+        } else {
+            shadowAlpha = 1.0f
+        }
 
         if (distToPlayer <= detectionRadius) {
             // Chase Player
@@ -84,7 +109,6 @@ data class Skeleton(
             val tileX = futurePos.x.toInt()
             val tileY = futurePos.y.toInt()
             if (!isTileWalkable(tileX, tileY)) {
-                // If hitting wall, negate or randomize wander
                 wanderDirection = Vector2D(-wanderDirection.x, -wanderDirection.y)
                 velocity = Vector2D.ZERO
             }

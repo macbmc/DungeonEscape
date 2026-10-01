@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.dungeonescape.engine.GameEngine
 import com.dungeonescape.engine.GameLoop
@@ -43,7 +42,11 @@ class MainActivity : ComponentActivity() {
                         ScreenState.MAIN_MENU, ScreenState.INSTRUCTIONS -> {
                             MainMenuScreen(
                                 stateManager = gameEngine.stateManager,
-                                onStartGame = {
+                                onResumeGame = {
+                                    gameEngine.resumeSavedGame()
+                                    gameLoop.start()
+                                },
+                                onStartNewGame = {
                                     gameEngine.startNewGame()
                                     gameLoop.start()
                                 },
