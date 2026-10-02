@@ -34,12 +34,59 @@ class GameStateManager(context: Context) {
             }
         }
 
-    fun recordScore(score: Int, level: Int) {
+    var highestCoins: Int
+        get() = prefs.getInt("highest_coins", 0)
+        set(value) {
+            if (value > highestCoins) {
+                prefs.edit().putInt("highest_coins", value).apply()
+            }
+        }
+
+    var musicVolume: Float
+        get() = prefs.getFloat("setting_music_volume", 0.8f)
+        set(value) {
+            prefs.edit().putFloat("setting_music_volume", value.coerceIn(0f, 1f)).apply()
+        }
+
+    var sfxVolume: Float
+        get() = prefs.getFloat("setting_sfx_volume", 1.0f)
+        set(value) {
+            prefs.edit().putFloat("setting_sfx_volume", value.coerceIn(0f, 1f)).apply()
+        }
+
+    var musicEnabled: Boolean
+        get() = prefs.getBoolean("setting_music_enabled", true)
+        set(value) {
+            prefs.edit().putBoolean("setting_music_enabled", value).apply()
+        }
+
+    var sfxEnabled: Boolean
+        get() = prefs.getBoolean("setting_sfx_enabled", true)
+        set(value) {
+            prefs.edit().putBoolean("setting_sfx_enabled", value).apply()
+        }
+
+    var vibrationEnabled: Boolean
+        get() = prefs.getBoolean("setting_vibration_enabled", true)
+        set(value) {
+            prefs.edit().putBoolean("setting_vibration_enabled", value).apply()
+        }
+
+    var tutorialCompleted: Boolean
+        get() = prefs.getBoolean("tutorial_completed", false)
+        set(value) {
+            prefs.edit().putBoolean("tutorial_completed", value).apply()
+        }
+
+    fun recordScore(score: Int, level: Int, coins: Int = 0) {
         if (score > highScore) {
             highScore = score
         }
         if (level > highestLevel) {
             highestLevel = level
+        }
+        if (coins > highestCoins) {
+            highestCoins = coins
         }
         clearSavedGameSession()
     }

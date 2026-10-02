@@ -22,6 +22,7 @@ import com.dungeonescape.models.Tile
 import com.dungeonescape.models.Vector2D
 import com.dungeonescape.utils.Constants
 import com.dungeonescape.utils.GameBalance
+import com.dungeonescape.utils.VibrationManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,6 +59,7 @@ class GameEngine(private val context: Context) {
 
     private val pendingAttack = AtomicBoolean(false)
     private val pendingDash = AtomicBoolean(false)
+    private val isTransitioningLevel = AtomicBoolean(false)
     private var moveInput = Vector2D.ZERO
     private var currentScreen = ScreenState.MAIN_MENU
     private var isPaused = false
@@ -68,10 +70,24 @@ class GameEngine(private val context: Context) {
     private val _gameStateFlow = MutableStateFlow(GameState())
     val gameStateFlow: StateFlow<GameState> = _gameStateFlow.asStateFlow()
 
+    init {
+        applySettings()
+    }
+
+    fun applySettings() {
+        audioManager.updateSettings(
+            musicVol = stateManager.musicVolume,
+            sfxVol = stateManager.sfxVolume,
+            musicOn = stateManager.musicEnabled,
+            sfxOn = stateManager.sfxEnabled
+        )
+    }
+
     fun startNewGame(
         themeMode: ThemeMode = ThemeMode.PROGRESSIVE,
         lockedTheme: DungeonTheme = DungeonTheme.ANCIENT_RUINS
     ) {
+        applySettings()
         currentLevel = 1
         totalScore = 0
         currentThemeMode = themeMode
@@ -86,6 +102,7 @@ class GameEngine(private val context: Context) {
     }
 
     fun resumeSavedGame() {
+        applySettings()
         val saved = stateManager.loadSavedGameSession() ?: return
         currentLevel = saved.level
         totalScore = saved.score
@@ -100,24 +117,39 @@ class GameEngine(private val context: Context) {
     }
 
     fun nextLevel() {
-        currentLevel++
-        totalScore += Constants.LEVEL_COMPLETE_BONUS
-        audioManager.playSound(SoundType.VICTORY)
-        
-        // Fair level completion recovery: +10 HP (GameBalance.LEVEL_COMPLETE_HEAL)
-        player.heal(GameBalance.LEVEL_COMPLETE_HEAL)
-        healFeedbackText = "Dungeon cleared • +${GameBalance.LEVEL_COMPLETE_HEAL.toInt()} HP"
-        healFeedbackTimer = 2.5f
-        player.hasKey = false
-        
-        loadLevel(currentLevel)
-        audioManager.setTheme(getCurrentTheme())
-        saveSession()
-        publishState()
+        if (isTransitioningLevel.getAndSet(true)) return
+        try {
+            currentLevel++
+            totalScore += Constants.LEVEL_COMPLETE_BONUS
+            audioManager.playSound(SoundType.VICTORY)
+            VibrationManager.vibrateVictory(context, stateManager.vibrationEnabled)
+
+            // Fair level completion recovery: +10 HP (GameBalance.LEVEL_COMPLETE_HEAL)
+            player.heal(GameBalance.LEVEL_COMPLETE_HEAL)
+            healFeedbackText = "Dungeon cleared • +${GameBalance.LEVEL_COMPLETE_HEAL.toInt()} HP"
+            healFeedbackTimer = 2.5f
+            player.hasKey = false
+
+            loadLevel(currentLevel)
+            audioManager.setTheme(getCurrentTheme())
+            saveSession()
+            publishState()
+        } finally {
+            isTransitioningLevel.set(false)
+        }
     }
 
     fun restartGame() {
         startNewGame(currentThemeMode, chosenLockedTheme)
+    }
+
+    fun restartCurrentLevel() {
+        isPaused = false
+        player = Player(health = Constants.PLAYER_MAX_HEALTH, coinsCollected = player.coinsCollected)
+        loadLevel(currentLevel)
+        audioManager.setTheme(getCurrentTheme())
+        audioManager.startBgm()
+        publishState()
     }
 
     fun setScreen(screen: ScreenState) {
@@ -163,6 +195,7 @@ class GameEngine(private val context: Context) {
             healFeedbackText = "+${actualHeal.toInt()} HP"
             healFeedbackTimer = 2.0f
             audioManager.playSound(SoundType.POTION_PURCHASE)
+            VibrationManager.vibrateLight(context, stateManager.vibrationEnabled)
             particleSystem.spawnHealEffect(player.position)
             publishState()
             return true
@@ -206,14 +239,14 @@ class GameEngine(private val context: Context) {
     private fun executeAttack() {
         if (player.triggerAttack()) {
             audioManager.playSound(SoundType.ATTACK)
-            
+
             // Check Attack on Skeletons
             collisionSystem.checkPlayerAttack(player, skeletons) { skeleton, damage ->
                 val tookDmg = skeleton.takeDamage(damage)
                 if (tookDmg) {
                     audioManager.playSound(SoundType.ENEMY_HIT)
                     particleSystem.spawnPlayerHit(skeleton.position)
-                    
+
                     if (!skeleton.isAlive) {
                         val isElite = skeleton.variant != EnemyVariant.NORMAL
                         val bonusCoins = skeleton.bonusCoinDrop
@@ -235,6 +268,7 @@ class GameEngine(private val context: Context) {
                 val tileCenter = Vector2D(tile.x + 0.5f, tile.y + 0.5f)
                 if (isBroken) {
                     audioManager.playSound(SoundType.SECRET_WALL_BREAK)
+                    VibrationManager.vibrateLight(context, stateManager.vibrationEnabled)
                     particleSystem.spawnWallHitDebris(tileCenter, isBroken = true)
                     lightingSystem.updateLighting(player.position, tiles)
                 } else {
@@ -331,7 +365,7 @@ class GameEngine(private val context: Context) {
         for (skeleton in skeletons) {
             if (!skeleton.isAlive) continue
             skeleton.updateAI(clampedDelta, player.position, isTileWalkable)
-            
+
             skeleton.position = collisionSystem.resolveEntityWallCollision(
                 currentPos = skeleton.position,
                 velocity = skeleton.velocity,
@@ -366,6 +400,7 @@ class GameEngine(private val context: Context) {
             val actualHeal = min(collectedPotion.healAmount, player.maxHealth - player.health)
             player.heal(actualHeal)
             audioManager.playSound(SoundType.POTION_PURCHASE)
+            VibrationManager.vibrateLight(context, stateManager.vibrationEnabled)
             particleSystem.spawnHealEffect(collectedPotion.position)
             healFeedbackText = "+${actualHeal.toInt()} HP"
             healFeedbackTimer = 2.0f
@@ -376,6 +411,7 @@ class GameEngine(private val context: Context) {
             totalScore += coinsReward * 2
             player.coinsCollected += coinsReward
             audioManager.playSound(SoundType.CHEST_OPEN)
+            VibrationManager.vibrateLight(context, stateManager.vibrationEnabled)
             particleSystem.spawnChestOpen(chest.position)
         }
 
@@ -384,6 +420,7 @@ class GameEngine(private val context: Context) {
             val damaged = player.takeDamage(dmg)
             if (damaged) {
                 audioManager.playSound(SoundType.TRAP_HIT)
+                VibrationManager.vibrateImpact(context, stateManager.vibrationEnabled)
                 particleSystem.spawnPlayerHit(player.position)
                 if (player.isDead) {
                     onPlayerDeath()
@@ -396,6 +433,7 @@ class GameEngine(private val context: Context) {
             player.hasKey = true
             exitPortal?.isActive = true
             audioManager.playSound(SoundType.KEY_PICKUP)
+            VibrationManager.vibrateLight(context, stateManager.vibrationEnabled)
             exitPortal?.let {
                 particleSystem.spawnPortalActivation(it.position)
             }
@@ -406,6 +444,7 @@ class GameEngine(private val context: Context) {
             val damaged = player.takeDamage(damage)
             if (damaged) {
                 audioManager.playSound(SoundType.PLAYER_DAMAGE)
+                VibrationManager.vibrateImpact(context, stateManager.vibrationEnabled)
                 particleSystem.spawnPlayerHit(player.position)
                 if (player.isDead) {
                     onPlayerDeath()
@@ -434,7 +473,8 @@ class GameEngine(private val context: Context) {
 
     private fun onPlayerDeath() {
         audioManager.playSound(SoundType.GAME_OVER)
-        stateManager.recordScore(totalScore, currentLevel)
+        VibrationManager.vibrateImpact(context, stateManager.vibrationEnabled)
+        stateManager.recordScore(totalScore, currentLevel, player.coinsCollected)
         currentScreen = ScreenState.GAME_OVER
     }
 

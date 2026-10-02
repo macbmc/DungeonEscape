@@ -6,8 +6,8 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import android.media.SoundPool
 import android.os.SystemClock
-import android.util.Log
 import com.dungeonescape.models.DungeonTheme
+import com.dungeonescape.utils.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -24,6 +24,11 @@ class AudioManager(private val context: Context) {
     private var soundWorkerJob: Job? = null
     private var isMuted: Boolean = false
     private var currentTheme: DungeonTheme = DungeonTheme.ANCIENT_RUINS
+
+    var musicVolume: Float = 0.8f
+    var sfxVolume: Float = 1.0f
+    var musicEnabled: Boolean = true
+    var sfxEnabled: Boolean = true
 
     private val sampleRate = 22050
     private val lastPlayedTimeMap = ConcurrentHashMap<SoundType, Long>()
@@ -45,6 +50,22 @@ class AudioManager(private val context: Context) {
         startSoundWorker()
     }
 
+    fun updateSettings(
+        musicVol: Float,
+        sfxVol: Float,
+        musicOn: Boolean,
+        sfxOn: Boolean
+    ) {
+        musicVolume = musicVol.coerceIn(0f, 1f)
+        sfxVolume = sfxVol.coerceIn(0f, 1f)
+        musicEnabled = musicOn
+        sfxEnabled = sfxOn
+
+        if (!musicEnabled || musicVolume <= 0.01f) {
+            stopBgm()
+        }
+    }
+
     private fun startSoundWorker() {
         soundWorkerJob = scope.launch {
             for (type in soundQueue) {
@@ -52,7 +73,7 @@ class AudioManager(private val context: Context) {
                 try {
                     synthesizeSoundSafe(type)
                 } catch (t: Throwable) {
-                    Log.w("AudioManager", "Error playing sound $type: ${t.message}")
+                    AppLogger.w("AudioManager", "Error playing sound $type: ${t.message}", t)
                 }
             }
         }
@@ -63,7 +84,7 @@ class AudioManager(private val context: Context) {
     }
 
     fun playSound(type: SoundType) {
-        if (isMuted) return
+        if (isMuted || !sfxEnabled || sfxVolume <= 0.01f) return
 
         val now = SystemClock.uptimeMillis()
         val lastPlayed = lastPlayedTimeMap[type] ?: 0L
@@ -86,9 +107,9 @@ class AudioManager(private val context: Context) {
         val soundId = soundMap[type]
         if (soundId != null && soundId > 0) {
             try {
-                soundPool.play(soundId, 1f, 1f, 1, 0, 1f)
+                soundPool.play(soundId, sfxVolume, sfxVolume, 1, 0, 1f)
             } catch (t: Throwable) {
-                Log.w("AudioManager", "SoundPool error: ${t.message}")
+                AppLogger.w("AudioManager", "SoundPool error: ${t.message}", t)
             }
         } else {
             soundQueue.trySend(type)
@@ -96,11 +117,12 @@ class AudioManager(private val context: Context) {
     }
 
     fun startBgm() {
+        if (!musicEnabled || musicVolume <= 0.01f || isMuted) return
         if (bgmJob?.isActive == true) return
         bgmJob = scope.launch {
             var noteIndex = 0
             while (isActive) {
-                if (!isMuted) {
+                if (!isMuted && musicEnabled && musicVolume > 0.01f) {
                     val notes = when (currentTheme) {
                         DungeonTheme.ANCIENT_RUINS -> intArrayOf(110, 130, 146, 110, 98, 110, 146, 164) // A-minor
                         DungeonTheme.HAUNTED_CRYPT -> intArrayOf(92, 110, 123, 92, 82, 110, 123, 146) // Dark crypt
@@ -110,9 +132,9 @@ class AudioManager(private val context: Context) {
                     }
                     val freq = notes[noteIndex % notes.size].toFloat()
                     try {
-                        playToneSafe(freq, 0.40f, 0.08f)
+                        playToneSafe(freq, 0.40f, 0.08f * musicVolume)
                     } catch (t: Throwable) {
-                        Log.w("AudioManager", "BGM note error: ${t.message}")
+                        AppLogger.w("AudioManager", "BGM note error: ${t.message}", t)
                     }
                     noteIndex++
                 }
@@ -128,54 +150,59 @@ class AudioManager(private val context: Context) {
 
     fun toggleMute(): Boolean {
         isMuted = !isMuted
+        if (isMuted) {
+            stopBgm()
+        }
         return isMuted
     }
 
     private fun synthesizeSoundSafe(type: SoundType) {
+        val vol = sfxVolume
         when (type) {
-            SoundType.ATTACK -> playSweepSafe(440f, 120f, 0.12f, 0.35f)
-            SoundType.ENEMY_HIT -> playSweepSafe(220f, 60f, 0.14f, 0.45f)
-            SoundType.PLAYER_DAMAGE -> playSweepSafe(180f, 80f, 0.20f, 0.55f)
+            SoundType.ATTACK -> playSweepSafe(440f, 120f, 0.12f, 0.35f * vol)
+            SoundType.ENEMY_HIT -> playSweepSafe(220f, 60f, 0.14f, 0.45f * vol)
+            SoundType.PLAYER_DAMAGE -> playSweepSafe(180f, 80f, 0.20f, 0.55f * vol)
             SoundType.COIN_PICKUP -> {
-                playToneSafe(987f, 0.07f, 0.35f)
-                playToneSafe(1318f, 0.10f, 0.35f)
+                playToneSafe(987f, 0.07f, 0.35f * vol)
+                playToneSafe(1318f, 0.10f, 0.35f * vol)
             }
             SoundType.KEY_PICKUP -> {
-                playToneSafe(523f, 0.08f, 0.35f)
-                playToneSafe(659f, 0.08f, 0.35f)
-                playToneSafe(783f, 0.08f, 0.35f)
-                playToneSafe(1046f, 0.20f, 0.45f)
+                playToneSafe(523f, 0.08f, 0.35f * vol)
+                playToneSafe(659f, 0.08f, 0.35f * vol)
+                playToneSafe(783f, 0.08f, 0.35f * vol)
+                playToneSafe(1046f, 0.20f, 0.45f * vol)
             }
-            SoundType.PORTAL_ACTIVATED -> playSweepSafe(200f, 880f, 0.35f, 0.45f)
-            SoundType.DASH -> playSweepSafe(600f, 250f, 0.10f, 0.30f)
+            SoundType.PORTAL_ACTIVATED -> playSweepSafe(200f, 880f, 0.35f, 0.45f * vol)
+            SoundType.DASH -> playSweepSafe(600f, 250f, 0.10f, 0.30f * vol)
             SoundType.VICTORY -> {
-                playToneSafe(523f, 0.12f, 0.35f)
-                playToneSafe(659f, 0.12f, 0.35f)
-                playToneSafe(783f, 0.12f, 0.35f)
-                playToneSafe(1046f, 0.30f, 0.45f)
+                playToneSafe(523f, 0.12f, 0.35f * vol)
+                playToneSafe(659f, 0.12f, 0.35f * vol)
+                playToneSafe(783f, 0.12f, 0.35f * vol)
+                playToneSafe(1046f, 0.30f, 0.45f * vol)
             }
-            SoundType.GAME_OVER -> playSweepSafe(300f, 90f, 0.50f, 0.55f)
-            SoundType.SECRET_WALL_HIT -> playSweepSafe(320f, 180f, 0.10f, 0.40f)
+            SoundType.GAME_OVER -> playSweepSafe(300f, 90f, 0.50f, 0.55f * vol)
+            SoundType.SECRET_WALL_HIT -> playSweepSafe(320f, 180f, 0.10f, 0.40f * vol)
             SoundType.SECRET_WALL_BREAK -> {
-                playSweepSafe(280f, 60f, 0.25f, 0.60f)
-                playSweepSafe(150f, 40f, 0.30f, 0.50f)
+                playSweepSafe(280f, 60f, 0.25f, 0.60f * vol)
+                playSweepSafe(150f, 40f, 0.30f, 0.50f * vol)
             }
             SoundType.CHEST_OPEN -> {
-                playToneSafe(659f, 0.10f, 0.40f)
-                playToneSafe(880f, 0.15f, 0.45f)
-                playToneSafe(1174f, 0.25f, 0.50f)
+                playToneSafe(659f, 0.10f, 0.40f * vol)
+                playToneSafe(880f, 0.15f, 0.45f * vol)
+                playToneSafe(1174f, 0.25f, 0.50f * vol)
             }
             SoundType.POTION_PURCHASE -> {
-                playToneSafe(440f, 0.10f, 0.35f)
-                playToneSafe(659f, 0.12f, 0.40f)
-                playToneSafe(880f, 0.20f, 0.45f)
+                playToneSafe(440f, 0.10f, 0.35f * vol)
+                playToneSafe(659f, 0.12f, 0.40f * vol)
+                playToneSafe(880f, 0.20f, 0.45f * vol)
             }
-            SoundType.TRAP_HIT -> playSweepSafe(240f, 100f, 0.15f, 0.55f)
+            SoundType.TRAP_HIT -> playSweepSafe(240f, 100f, 0.15f, 0.55f * vol)
             SoundType.BGM -> {}
         }
     }
 
     private fun playToneSafe(frequency: Float, durationSec: Float, volume: Float) {
+        if (volume <= 0.001f) return
         var audioTrack: AudioTrack? = null
         try {
             val numSamples = (durationSec * sampleRate).toInt().coerceAtLeast(1)
@@ -213,7 +240,7 @@ class AudioManager(private val context: Context) {
                 Thread.sleep((durationSec * 1000).toLong().coerceAtLeast(10))
             }
         } catch (t: Throwable) {
-            Log.w("AudioManager", "playToneSafe exception: ${t.message}")
+            AppLogger.w("AudioManager", "playToneSafe exception: ${t.message}", t)
         } finally {
             try {
                 audioTrack?.stop()
@@ -223,6 +250,7 @@ class AudioManager(private val context: Context) {
     }
 
     private fun playSweepSafe(startFreq: Float, endFreq: Float, durationSec: Float, volume: Float) {
+        if (volume <= 0.001f) return
         var audioTrack: AudioTrack? = null
         try {
             val numSamples = (durationSec * sampleRate).toInt().coerceAtLeast(1)
@@ -262,7 +290,7 @@ class AudioManager(private val context: Context) {
                 Thread.sleep((durationSec * 1000).toLong().coerceAtLeast(10))
             }
         } catch (t: Throwable) {
-            Log.w("AudioManager", "playSweepSafe exception: ${t.message}")
+            AppLogger.w("AudioManager", "playSweepSafe exception: ${t.message}", t)
         } finally {
             try {
                 audioTrack?.stop()

@@ -1,6 +1,6 @@
 package com.dungeonescape.engine
 
-import android.util.Log
+import com.dungeonescape.utils.AppLogger
 import com.dungeonescape.entities.Coin
 import com.dungeonescape.entities.EnemyVariant
 import com.dungeonescape.entities.ExitPortal
@@ -502,10 +502,6 @@ class DungeonGenerator(private val size: Int = Constants.DUNGEON_SIZE) {
     }
 
     private fun logDebug(msg: String) {
-        try {
-            Log.d("DungeonGenerator", msg)
-        } catch (_: Throwable) {
-            println("[DungeonGenerator] $msg")
-        }
+        AppLogger.d("DungeonGenerator", msg)
     }
 }

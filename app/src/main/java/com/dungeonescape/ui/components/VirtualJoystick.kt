@@ -13,6 +13,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dungeonescape.models.Vector2D
@@ -29,6 +31,7 @@ fun VirtualJoystick(
     Canvas(
         modifier = modifier
             .size(size)
+            .semantics { contentDescription = "Movement joystick" }
             .pointerInput(Unit) {
                 val radius = this.size.width / 2f
                 detectDragGestures(
