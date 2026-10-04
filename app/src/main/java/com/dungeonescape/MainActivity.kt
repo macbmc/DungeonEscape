@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         gameEngine = GameEngine(applicationContext)
-        gameLoop = GameLoop(gameEngine)
+        gameLoop = GameLoop(gameEngine )
 
         setContent {
             DungeonEscapeTheme {

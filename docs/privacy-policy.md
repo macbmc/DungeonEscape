@@ -1,8 +1,8 @@
 # Privacy Policy for Dungeon Escape
 
-**Effective Date:** [October 2, 2026]  
-**Developer / Studio:** [Makry Games]  
-**Contact Email:** [macflutter17@gmail.com]  
+**Effective Date:** October 2, 2026  
+**Developer / Studio:** Makry Games  
+**Contact Email:** macflutter17@gmail.com  
 
 ---
 
@@ -59,5 +59,5 @@ We may update our Privacy Policy from time to time. If any third-party services,
 
 If you have any questions or suggestions regarding this Privacy Policy, please contact us at:
 
-**Email:** [DEVELOPER EMAIL PLACEHOLDER]  
-**Website:** [DEVELOPER WEBSITE OR GITHUB REPO URL]  
+**Email:** macflutter17@gmail.com
+**Website:** https://github.com/macbmc/DungeonEscape
