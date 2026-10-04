@@ -59,5 +59,5 @@ We may update our Privacy Policy from time to time. If any third-party services,
 
 If you have any questions or suggestions regarding this Privacy Policy, please contact us at:
 
-**Email:** macflutter17@gmail.com
-**Website:** https://github.com/macbmc/DungeonEscape
+**Email:** macflutter17@gmail.com  
+**Website:** https://github.com/macbmc/DungeonEscape  
