@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Magical Aura / Glow -->
+    <path
+        android:fillColor="#33805AD5"
+        android:pathData="M54,20 A34,34 0 1,0 54,88 A34,34 0 1,0 54,20 Z" />
+    <path
+        android:fillColor="#4D4FD1C5"
+        android:pathData="M54,26 A28,28 0 1,0 54,82 A28,28 0 1,0 54,26 Z" />
+
+    <!-- Stone Portal Arch -->
+    <path
+        android:fillColor="#2D3748"
+        android:strokeColor="#4A5568"
+        android:strokeWidth="2"
+        android:pathData="M30,82 L30,48 Q30,24 54,24 Q78,24 78,48 L78,82 L70,82 L70,50 Q70,32 54,32 Q38,32 38,50 L38,82 Z" />
+
+    <!-- Runes on Portal -->
+    <path
+        android:fillColor="#4FD1C5"
+        android:pathData="M33,48 L35,48 L35,52 L33,52 Z M73,48 L75,48 L75,52 L73,52 Z M52,27 L56,27 L56,29 L52,29 Z" />
+
+    <!-- Portal Inner Vortex -->
+    <path
+        android:fillColor="#805AD5"
+        android:pathData="M40,52 Q40,36 54,36 Q68,36 68,52 L68,80 L40,80 Z" />
+    <path
+        android:fillColor="#B794F4"
+        android:pathData="M46,56 Q46,44 54,44 Q62,44 62,56 L62,78 L46,78 Z" />
+
+    <!-- Golden Key Emblem -->
+    <!-- Key Ring -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M54,45 A7,7 0 1,0 54,59 A7,7 0 1,0 54,45 Z" />
+    <path
+        android:fillColor="#0D0F14"
+        android:pathData="M54,48 A4,4 0 1,0 54,56 A4,4 0 1,0 54,48 Z" />
+    <!-- Key Shaft -->
+    <path
+        android:fillColor="#ECC94B"
+        android:pathData="M52.5,58 L55.5,58 L55.5,74 L52.5,74 Z" />
+    <!-- Key Teeth -->
+    <path
+        android:fillColor="#ECC94B"
+        android:pathData="M55.5,65 L60,65 L60,68 L55.5,68 Z M55.5,70 L59,70 L59,73 L55.5,73 Z" />
+
+    <!-- Sparkles -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M38,38 L39,40 L41,41 L39,42 L38,44 L37,42 L35,41 L37,40 Z" />
+    <path
+        android:fillColor="#FFFAF0"
+        android:pathData="M69,36 L70,38 L72,39 L70,40 L69,42 L68,40 L66,39 L68,38 Z" />
+</vector>

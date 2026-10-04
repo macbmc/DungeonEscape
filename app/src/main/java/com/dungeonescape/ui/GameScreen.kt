@@ -10,13 +10,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -24,9 +24,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,10 +42,13 @@ import com.dungeonescape.models.GameState
 import com.dungeonescape.ui.components.ActionButton
 import com.dungeonescape.ui.components.GameHud
 import com.dungeonescape.ui.components.MerchantDialog
+import com.dungeonescape.ui.components.SettingsDialog
+import com.dungeonescape.ui.components.TutorialDialog
 import com.dungeonescape.ui.components.VirtualJoystick
 import com.dungeonescape.ui.theme.DungeonAccent
 import com.dungeonescape.ui.theme.DungeonCard
 import com.dungeonescape.ui.theme.DungeonDark
+import com.dungeonescape.ui.theme.DungeonGold
 import com.dungeonescape.ui.theme.DungeonGreen
 import com.dungeonescape.ui.theme.DungeonPrimary
 import com.dungeonescape.ui.theme.DungeonRed
@@ -56,6 +64,10 @@ fun GameScreen(
     onMainMenu: () -> Unit
 ) {
     val themeAssets = gameEngine.themeManager.getAssets(gameState.theme)
+    var showInGameSettings by remember { mutableStateOf(false) }
+    var showFirstTimeTutorial by remember {
+        mutableStateOf(!gameEngine.stateManager.tutorialCompleted)
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -210,18 +222,21 @@ fun GameScreen(
             }
         }
 
-        // 2. HUD OVERLAY
+        // 2. HUD OVERLAY (Safe insets for status bar)
         GameHud(
             gameState = gameState,
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding(),
             onPauseClick = { gameEngine.pauseGame() }
         )
 
-        // 3. TOUCH CONTROLS
+        // 3. TOUCH CONTROLS (Safe insets for navigation bars)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 24.dp, start = 20.dp, end = 20.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 20.dp, start = 20.dp, end = 20.dp)
         ) {
             // Virtual Joystick
             VirtualJoystick(
@@ -299,8 +314,28 @@ fun GameScreen(
             )
         }
 
-        // 5. PAUSE MODAL
-        if (gameState.isPaused) {
+        // 5. FIRST TIME TUTORIAL MODAL
+        if (showFirstTimeTutorial) {
+            TutorialDialog(
+                isFirstTime = true,
+                onDismiss = {
+                    showFirstTimeTutorial = false
+                    gameEngine.stateManager.tutorialCompleted = true
+                }
+            )
+        }
+
+        // 6. IN-GAME SETTINGS MODAL
+        if (showInGameSettings) {
+            SettingsDialog(
+                stateManager = gameEngine.stateManager,
+                onSettingsChanged = { gameEngine.applySettings() },
+                onDismiss = { showInGameSettings = false }
+            )
+        }
+
+        // 7. PAUSE MODAL
+        if (gameState.isPaused && !showInGameSettings && !showFirstTimeTutorial) {
             Dialog(onDismissRequest = { gameEngine.resumeGame() }) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
@@ -313,20 +348,24 @@ fun GameScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "GAME PAUSED",
-                            fontSize = 22.sp,
+                            text = "PAUSED",
+                            fontSize = 24.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            color = DungeonPrimary
+                            color = DungeonPrimary,
+                            letterSpacing = 2.sp
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
 
+                        // RESUME
                         Button(
                             onClick = { gameEngine.resumeGame() },
                             colors = ButtonDefaults.buttonColors(containerColor = DungeonPrimary),
                             shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth(0.8f)
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .semantics { contentDescription = "Resume game" }
                         ) {
                             Text(
                                 text = "RESUME",
@@ -336,18 +375,57 @@ fun GameScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
+                        // RESTART LEVEL
+                        OutlinedButton(
+                            onClick = { gameEngine.restartCurrentLevel() },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .semantics { contentDescription = "Restart current level" }
+                        ) {
+                            Text(
+                                text = "RESTART LEVEL",
+                                color = DungeonAccent,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // SETTINGS
+                        OutlinedButton(
+                            onClick = { showInGameSettings = true },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .semantics { contentDescription = "Open settings from pause menu" }
+                        ) {
+                            Text(
+                                text = "SETTINGS",
+                                color = DungeonGold,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // MAIN MENU
                         OutlinedButton(
                             onClick = {
                                 gameEngine.resumeGame()
                                 onMainMenu()
                             },
                             shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth(0.8f)
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .semantics { contentDescription = "Save and exit to main menu" }
                         ) {
                             Text(
-                                text = "SAVE & EXIT",
+                                text = "MAIN MENU",
                                 color = TextPrimary,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold

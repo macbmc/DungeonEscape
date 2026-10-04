@@ -6,7 +6,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,13 +18,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,13 +38,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.dungeonescape.R
 import com.dungeonescape.engine.GameStateManager
+import com.dungeonescape.ui.components.AboutCreditsDialog
+import com.dungeonescape.ui.components.SettingsDialog
+import com.dungeonescape.ui.components.TutorialDialog
 import com.dungeonescape.ui.theme.DungeonAccent
 import com.dungeonescape.ui.theme.DungeonCard
 import com.dungeonescape.ui.theme.DungeonDark
@@ -62,10 +64,12 @@ fun MainMenuScreen(
     stateManager: GameStateManager,
     onResumeGame: () -> Unit,
     onStartNewGame: () -> Unit,
-    onToggleAudio: () -> Unit,
+    onSettingsChanged: () -> Unit,
     onExit: () -> Unit
 ) {
-    var showInstructions by remember { mutableStateOf(false) }
+    var showHowToPlay by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+    var showAboutCredits by remember { mutableStateOf(false) }
 
     val savedSession = remember { stateManager.loadSavedGameSession() }
 
@@ -81,7 +85,9 @@ fun MainMenuScreen(
     )
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .safeDrawingPadding(),
         contentAlignment = Alignment.Center
     ) {
         // ATMOSPHERIC BACKGROUND IMAGE
@@ -111,12 +117,12 @@ fun MainMenuScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
-                .padding(24.dp)
+                .padding(horizontal = 24.dp, vertical = 12.dp)
                 .fillMaxWidth()
         ) {
             Text(
                 text = "DUNGEON",
-                fontSize = 44.sp,
+                fontSize = 42.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.ExtraBold,
                 color = DungeonPrimary,
@@ -124,44 +130,44 @@ fun MainMenuScreen(
             )
             Text(
                 text = "ESCAPE",
-                fontSize = 42.sp,
+                fontSize = 40.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.ExtraBold,
                 color = DungeonAccent,
                 letterSpacing = 4.sp
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = "Procedural Action Rogue Crawler",
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
                 color = TextSecondary
             )
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // High score card
+            // STATS BANNER
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
                     .background(DungeonCard.copy(alpha = 0.90f))
                     .border(1.5.dp, Color(0x44FFFFFF), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "HIGH SCORE",
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         color = DungeonGold,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "${stateManager.highScore}",
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         fontFamily = FontFamily.Monospace,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -171,14 +177,31 @@ fun MainMenuScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "MAX LEVEL",
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         color = DungeonAccent,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "${stateManager.highestLevel}",
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "MAX COINS",
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = DungeonGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${stateManager.highestCoins}",
+                        fontSize = 16.sp,
                         fontFamily = FontFamily.Monospace,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -186,7 +209,7 @@ fun MainMenuScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // RESUME GAME BUTTON (If saved session exists)
             if (savedSession != null) {
@@ -196,67 +219,113 @@ fun MainMenuScreen(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .width(230.dp)
-                        .height(50.dp)
+                        .height(46.dp)
+                        .semantics { contentDescription = "Resume saved game at level ${savedSession.level}" }
                 ) {
                     Text(
                         text = "RESUME (LVL ${savedSession.level})",
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         color = DungeonDark
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // START NEW GAME BUTTON (Direct progressive start)
+            // START NEW GAME BUTTON
             Button(
                 onClick = onStartNewGame,
                 colors = ButtonDefaults.buttonColors(containerColor = DungeonPrimary),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .width(230.dp)
-                    .height(50.dp)
+                    .height(46.dp)
+                    .semantics { contentDescription = "Start a new game" }
             ) {
                 Text(
                     text = "NEW GAME",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     color = DungeonDark
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
+            // HOW TO PLAY BUTTON
             OutlinedButton(
-                onClick = { showInstructions = true },
+                onClick = { showHowToPlay = true },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .width(230.dp)
-                    .height(46.dp)
+                    .height(42.dp)
+                    .semantics { contentDescription = "View How to Play tutorial" }
             ) {
                 Text(
-                    text = "INSTRUCTIONS",
-                    fontSize = 14.sp,
+                    text = "HOW TO PLAY",
+                    fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     color = DungeonAccent
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
+            // SETTINGS BUTTON
+            OutlinedButton(
+                onClick = { showSettings = true },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .width(230.dp)
+                    .height(42.dp)
+                    .semantics { contentDescription = "Open game settings" }
+            ) {
+                Text(
+                    text = "SETTINGS",
+                    fontSize = 13.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = DungeonGold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ABOUT & PRIVACY BUTTON
+            OutlinedButton(
+                onClick = { showAboutCredits = true },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .width(230.dp)
+                    .height(42.dp)
+                    .semantics { contentDescription = "About game and privacy policy" }
+            ) {
+                Text(
+                    text = "ABOUT & PRIVACY",
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // EXIT BUTTON
             OutlinedButton(
                 onClick = onExit,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .width(230.dp)
-                    .height(44.dp)
+                    .height(40.dp)
+                    .semantics { contentDescription = "Exit game application" }
             ) {
                 Text(
                     text = "EXIT",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     color = DungeonRed
@@ -264,67 +333,28 @@ fun MainMenuScreen(
             }
         }
 
-        // Instructions Modal Dialog
-        if (showInstructions) {
-            Dialog(onDismissRequest = { showInstructions = false }) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = DungeonCard,
-                    border = BorderStroke(2.dp, DungeonAccent),
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "HOW TO PLAY",
-                            fontSize = 20.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = DungeonGold
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+        // HOW TO PLAY DIALOG
+        if (showHowToPlay) {
+            TutorialDialog(
+                isFirstTime = false,
+                onDismiss = { showHowToPlay = false }
+            )
+        }
 
-                        val instructions = listOf(
-                            "🕹️ Left Joystick: Move your hero smoothly.",
-                            "⚔️ Attack Button: Slash skeletons & crack Secret Walls!",
-                            "💨 Dash: Burst through enemies (cannot cross walls).",
-                            "🧱 Secret Walls: Look for subtle wall cracks! Break with 3 hits to discover Hidden Treasure Rooms.",
-                            "💰 Treasure Rooms: Contain coin chests, Merchant Altars, and Guardian Elites.",
-                            "🍷 Merchant Altar: Spend coins for instant health potions.",
-                            "🔑 Key & Portal: Find key to open the exit portal to ascend.",
-                            "⚡ Progressive Themes: Themes naturally evolve with your level depth!"
-                        )
+        // SETTINGS DIALOG
+        if (showSettings) {
+            SettingsDialog(
+                stateManager = stateManager,
+                onSettingsChanged = onSettingsChanged,
+                onDismiss = { showSettings = false }
+            )
+        }
 
-                        instructions.forEach { item ->
-                            Text(
-                                text = item,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = TextPrimary,
-                                modifier = Modifier.padding(vertical = 3.dp),
-                                lineHeight = 15.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = { showInstructions = false },
-                            colors = ButtonDefaults.buttonColors(containerColor = DungeonAccent),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text(
-                                text = "READY!",
-                                color = DungeonDark,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
+        // ABOUT & CREDITS DIALOG
+        if (showAboutCredits) {
+            AboutCreditsDialog(
+                onDismiss = { showAboutCredits = false }
+            )
         }
     }
 }

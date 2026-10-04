@@ -2,6 +2,7 @@ package com.dungeonescape
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.dungeonescape.engine.GameEngine
 import com.dungeonescape.engine.GameLoop
 import com.dungeonescape.models.ScreenState
@@ -24,11 +26,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var gameLoop: GameLoop
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         gameEngine = GameEngine(applicationContext)
-        gameLoop = GameLoop(gameEngine)
+        gameLoop = GameLoop(gameEngine )
 
         setContent {
             DungeonEscapeTheme {
@@ -37,6 +40,25 @@ class MainActivity : ComponentActivity() {
                     color = DungeonDark
                 ) {
                     val gameState by gameEngine.gameStateFlow.collectAsState()
+
+                    // Android System Back Navigation Handler
+                    BackHandler {
+                        when (gameState.screenState) {
+                            ScreenState.IN_GAME, ScreenState.LEVEL_CLEARED -> {
+                                if (gameState.isPaused) {
+                                    gameEngine.setScreen(ScreenState.MAIN_MENU)
+                                } else {
+                                    gameEngine.pauseGame()
+                                }
+                            }
+                            ScreenState.GAME_OVER, ScreenState.INSTRUCTIONS -> {
+                                gameEngine.setScreen(ScreenState.MAIN_MENU)
+                            }
+                            ScreenState.MAIN_MENU -> {
+                                finish()
+                            }
+                        }
+                    }
 
                     when (gameState.screenState) {
                         ScreenState.MAIN_MENU, ScreenState.INSTRUCTIONS -> {
@@ -50,8 +72,8 @@ class MainActivity : ComponentActivity() {
                                     gameEngine.startNewGame()
                                     gameLoop.start()
                                 },
-                                onToggleAudio = {
-                                    gameEngine.audioManager.toggleMute()
+                                onSettingsChanged = {
+                                    gameEngine.applySettings()
                                 },
                                 onExit = {
                                     finish()
@@ -94,6 +116,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        if (::gameEngine.isInitialized) {
+            gameEngine.pauseGame()
+        }
         if (::gameLoop.isInitialized) {
             gameLoop.pause()
         }
