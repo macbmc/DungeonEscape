@@ -20,7 +20,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -117,8 +120,10 @@ fun MainMenuScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
-                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp)
                 .fillMaxWidth()
+                .widthIn(max = 420.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Text(
                 text = "DUNGEON",
@@ -148,68 +153,70 @@ fun MainMenuScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // STATS BANNER
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(DungeonCard.copy(alpha = 0.90f))
-                    .border(1.5.dp, Color(0x44FFFFFF), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "HIGH SCORE",
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = DungeonGold,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${stateManager.highScore}",
-                        fontSize = 16.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
+            // STATS BANNER - Only shown if user has saved statistics / played
+            if (stateManager.hasStatistics) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DungeonCard.copy(alpha = 0.90f))
+                        .border(1.5.dp, Color(0x44FFFFFF), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "HIGH SCORE",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = DungeonGold,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${stateManager.highScore}",
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "MAX LEVEL",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = DungeonAccent,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${stateManager.highestLevel}",
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "MAX COINS",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = DungeonGreen,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${stateManager.highestCoins}",
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "MAX LEVEL",
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = DungeonAccent,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${stateManager.highestLevel}",
-                        fontSize = 16.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "MAX COINS",
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = DungeonGreen,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${stateManager.highestCoins}",
-                        fontSize = 16.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Spacer(modifier = Modifier.height(20.dp))
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
 
             // RESUME GAME BUTTON (If saved session exists)
             if (savedSession != null) {

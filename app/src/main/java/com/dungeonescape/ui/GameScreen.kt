@@ -17,13 +17,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,6 +71,12 @@ fun GameScreen(
     var showInGameSettings by remember { mutableStateOf(false) }
     var showFirstTimeTutorial by remember {
         mutableStateOf(!gameEngine.stateManager.tutorialCompleted)
+    }
+
+    LaunchedEffect(showFirstTimeTutorial) {
+        if (showFirstTimeTutorial) {
+            gameEngine.pauseGame()
+        }
     }
 
     BoxWithConstraints(
@@ -321,6 +331,7 @@ fun GameScreen(
                 onDismiss = {
                     showFirstTimeTutorial = false
                     gameEngine.stateManager.tutorialCompleted = true
+                    gameEngine.resumeGame()
                 }
             )
         }
@@ -335,16 +346,20 @@ fun GameScreen(
         }
 
         // 7. PAUSE MODAL
-        if (gameState.isPaused && !showInGameSettings && !showFirstTimeTutorial) {
+        if (gameState.isPaused && !showInGameSettings && !showFirstTimeTutorial && !gameState.isMerchantDialogOpen) {
             Dialog(onDismissRequest = { gameEngine.resumeGame() }) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = DungeonCard,
                     border = BorderStroke(2.dp, DungeonPrimary),
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .widthIn(max = 420.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(

@@ -78,7 +78,15 @@ class GameStateManager(context: Context) {
             prefs.edit().putBoolean("tutorial_completed", value).apply()
         }
 
+    val hasStatistics: Boolean
+        get() = prefs.getBoolean("has_statistics", false) ||
+                prefs.contains("high_score") ||
+                prefs.contains("highest_coins") ||
+                prefs.contains("highest_level") ||
+                hasSavedGame
+
     fun recordScore(score: Int, level: Int, coins: Int = 0) {
+        prefs.edit().putBoolean("has_statistics", true).apply()
         if (score > highScore) {
             highScore = score
         }
@@ -103,6 +111,7 @@ class GameStateManager(context: Context) {
         lockedTheme: DungeonTheme
     ) {
         prefs.edit()
+            .putBoolean("has_statistics", true)
             .putBoolean("has_saved_game", true)
             .putInt("saved_level", level)
             .putInt("saved_score", score)
