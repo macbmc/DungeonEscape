@@ -16,6 +16,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -94,154 +96,165 @@ fun GameHud(
         else -> DungeonRed
     }
 
-    Column(
+    BoxWithConstraints(
         modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        contentAlignment = Alignment.TopCenter
     ) {
-        Row(
+        val isNarrowScreen = maxWidth < 360.dp
+        val hpBarWidth = if (isNarrowScreen) 80.dp else 110.dp
+        val horizontalPad = if (isNarrowScreen) 8.dp else 16.dp
+
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+                .widthIn(max = 680.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // TOP LEFT: Health Bar
-            Column(
+            Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(DungeonCard.copy(alpha = 0.88f))
-                    .border(
-                        1.5.dp,
-                        if (healthPercent < 0.30f) Color(0xFFFF1744).copy(alpha = criticalPulseAlpha) else Color(0x44FFFFFF),
-                        RoundedCornerShape(10.dp)
-                    )
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = horizontalPad, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "HP",
-                        color = healthLabelColor,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${player.health.toInt()} / ${Constants.PLAYER_MAX_HEALTH.toInt()}",
-                        color = TextPrimary,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Box(
+                // TOP LEFT: Health Bar
+                Column(
                     modifier = Modifier
-                        .width(110.dp)
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(Color(0xFF1E222A))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(5.dp))
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(DungeonCard.copy(alpha = 0.88f))
+                        .border(
+                            1.5.dp,
+                            if (healthPercent < 0.30f) Color(0xFFFF1744).copy(alpha = criticalPulseAlpha) else Color(0x44FFFFFF),
+                            RoundedCornerShape(10.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "HP",
+                            color = healthLabelColor,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${player.health.toInt()} / ${Constants.PLAYER_MAX_HEALTH.toInt()}",
+                            color = TextPrimary,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(healthPercent)
+                            .width(hpBarWidth)
                             .height(10.dp)
                             .clip(RoundedCornerShape(5.dp))
-                            .background(Brush.horizontalGradient(healthGradient))
-                    )
+                            .background(Color(0xFF1E222A))
+                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(5.dp))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(healthPercent)
+                                .height(10.dp)
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(Brush.horizontalGradient(healthGradient))
+                        )
+                    }
                 }
-            }
 
-        // TOP CENTER: Key Status & Theme Name
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(DungeonCard.copy(alpha = 0.88f))
-                .border(
-                    width = 1.5.dp,
-                    color = if (player.hasKey) DungeonGold else Color(0x33FFFFFF),
-                    shape = RoundedCornerShape(10.dp)
-                )
-                .padding(horizontal = 10.dp, vertical = 5.dp)
-        ) {
-            Text(
-                text = gameState.theme.displayName.uppercase(),
-                color = Color(0xFF80D8FF),
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 10.sp
-            )
-            Text(
-                text = if (player.hasKey) "KEY: FOUND!" else "KEY: NEEDED",
-                color = if (player.hasKey) DungeonGold else TextSecondary,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                modifier = if (player.hasKey) Modifier.scale(pulseScale) else Modifier
-            )
-        }
-
-        // TOP RIGHT: Level, Coins & Pause
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.End,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(DungeonCard.copy(alpha = 0.88f))
-                    .border(1.5.dp, Color(0x44FFFFFF), RoundedCornerShape(10.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = "LVL ${levelState.levelNumber}",
-                    color = Color(0xFF00E5FF),
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // TOP CENTER: Key Status & Theme Name
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(DungeonCard.copy(alpha = 0.88f))
+                        .border(
+                            width = 1.5.dp,
+                            color = if (player.hasKey) DungeonGold else Color(0x33FFFFFF),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                ) {
                     Text(
-                        text = "COINS:",
-                        color = DungeonGold,
+                        text = gameState.theme.displayName.uppercase(),
+                        color = Color(0xFF80D8FF),
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
+                        fontSize = 10.sp
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${player.coinsCollected}",
-                        color = TextPrimary,
+                        text = if (player.hasKey) "KEY: FOUND!" else "KEY: NEEDED",
+                        color = if (player.hasKey) DungeonGold else TextSecondary,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 11.sp,
+                        modifier = if (player.hasKey) Modifier.scale(pulseScale) else Modifier
                     )
                 }
-            }
 
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(DungeonCard.copy(alpha = 0.88f))
-                    .border(1.5.dp, Color(0x55FFFFFF), CircleShape)
-                    .clickable { onPauseClick() }
-                    .semantics { contentDescription = "Pause game" },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "II",
-                    color = TextPrimary,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
+                // TOP RIGHT: Level, Coins & Pause
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(DungeonCard.copy(alpha = 0.88f))
+                            .border(1.5.dp, Color(0x44FFFFFF), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "LVL ${levelState.levelNumber}",
+                            color = Color(0xFF00E5FF),
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "COINS:",
+                                color = DungeonGold,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "${player.coinsCollected}",
+                                color = TextPrimary,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    // PAUSE BUTTON
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(DungeonCard.copy(alpha = 0.92f))
+                            .border(1.5.dp, DungeonGold.copy(alpha = 0.85f), RoundedCornerShape(10.dp))
+                            .clickable { onPauseClick() }
+                            .semantics { contentDescription = "Pause game" },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "❚❚",
+                            color = DungeonGold,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
             }
-        }
-    }
 
     // FLOATING HEAL / CLEAR FEEDBACK BANNER
         AnimatedVisibility(
@@ -271,3 +284,5 @@ fun GameHud(
         }
     }
 }
+}
+

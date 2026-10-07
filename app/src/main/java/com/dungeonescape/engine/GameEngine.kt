@@ -179,11 +179,13 @@ class GameEngine(private val context: Context) {
 
     fun openMerchantDialog() {
         isMerchantDialogOpen = true
+        isPaused = true
         publishState()
     }
 
     fun closeMerchantDialog() {
         isMerchantDialogOpen = false
+        isPaused = false
         publishState()
     }
 
@@ -308,7 +310,7 @@ class GameEngine(private val context: Context) {
     }
 
     fun update(deltaTime: Float) {
-        if (currentScreen != ScreenState.IN_GAME || isPaused) return
+        if (currentScreen != ScreenState.IN_GAME || isPaused || isMerchantDialogOpen) return
 
         val clampedDelta = min(deltaTime, Constants.MAX_DELTA_TIME)
 
